@@ -1,0 +1,3075 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DArknet Shop</title>
+  <style>
+    :root {
+      --bg-color: #050505;
+      --term-green: #00ff41;
+      --term-dim: #008f11;
+      --alert-red: #ff3333;
+      --font-stack: 'Courier New', Courier, monospace;
+      --scan-line: rgba(0, 255, 65, 0.04);
+      --card-bg: #000;
+      --muted: #9aa0a6;
+      --chip-bg: transparent;
+    }
+
+    /* THEMES */
+    :root[data-theme="matrix"]{
+      --bg-color:#050505; --term-green:#00ff41; --term-dim:#008f11; --scan-line:rgba(0,255,65,.04);
+    }
+    :root[data-theme="amber"]{
+      --bg-color:#070603; --term-green:#ffb000; --term-dim:#9a6b00; --scan-line:rgba(255,176,0,.04);
+    }
+    :root[data-theme="ice"]{
+      --bg-color:#03070a; --term-green:#6ee7ff; --term-dim:#2aa9c7; --scan-line:rgba(110,231,255,.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--term-green);
+      font-family: var(--font-stack);
+      font-size: 16px;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    .scanline {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(to bottom, transparent 50%, var(--scan-line) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .glow { text-shadow: 0 0 5px var(--term-green); }
+    .glow-red { text-shadow: 0 0 5px var(--alert-red); color: var(--alert-red); }
+    .glow-yellow { text-shadow: 0 0 5px #ffcc00; color: #ffcc00; }
+
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+    .cursor::after { content: '_'; animation: blink 1s infinite; }
+
+    button {
+      background: transparent;
+      border: 1px solid var(--term-green);
+      color: var(--term-green);
+      padding: 10px 14px;
+      font-family: var(--font-stack);
+      cursor: pointer;
+      transition: 0.2s;
+      text-transform: uppercase;
+      font-weight: bold;
+      line-height: 1;
+    }
+    button:hover { background: var(--term-green); color: var(--bg-color); box-shadow: 0 0 15px var(--term-green); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button:disabled:hover { background: transparent; color: var(--term-green); box-shadow: none; }
+    button.danger { border-color: var(--alert-red); color: var(--alert-red); }
+    button.danger:hover { background: var(--alert-red); color: #000; box-shadow: 0 0 15px var(--alert-red); }
+    button.warning { border-color: #ffcc00; color: #ffcc00; }
+    button.warning:hover { background: #ffcc00; color: #000; box-shadow: 0 0 15px #ffcc00; }
+
+    input, select, textarea {
+      background: #000;
+      border: 1px solid var(--term-dim);
+      color: var(--term-green);
+      padding: 10px;
+      width: 100%;
+      font-family: var(--font-stack);
+      margin-bottom: 10px;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--term-green);
+      box-shadow: 0 0 5px var(--term-green);
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .hidden { display: none !important; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--term-dim);
+      padding-bottom: 16px; margin-bottom: 16px;
+      gap: 12px;
+    }
+    .logo { font-size: 1.4rem; font-weight: bold; letter-spacing: 2px; }
+    nav { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .muted { color: var(--muted); }
+
+    /* AUTH */
+    #auth-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 80vh; text-align: center; border: 1px solid var(--term-dim);
+      max-width: 560px; margin: 50px auto; padding: 40px;
+      background: rgba(0,0,0,0.35);
+    }
+
+    /* SECTION PICKER */
+    .section-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+    .section-card{
+      border: 1px solid var(--term-dim);
+      background: var(--card-bg);
+      padding: 16px;
+      cursor: pointer;
+      transition: .2s;
+      min-height: 110px;
+      display:flex; flex-direction:column; justify-content:space-between;
+    }
+    .section-card:hover{ border-color: var(--term-green); box-shadow: 0 0 12px var(--term-dim); transform: translateY(-2px); }
+    .section-card .title{ font-size:1.1rem; }
+    .section-card .meta{ font-size:.85rem; color: var(--muted); }
+
+    /* SHOP */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+    .card { border: 1px solid var(--term-dim); padding: 15px; display: flex; flex-direction: column; transition: 0.3s; background: var(--card-bg); }
+    .card:hover { border-color: var(--term-green); box-shadow: 0 0 10px var(--term-dim); transform: translateY(-2px); }
+    .card img { width: 100%; height: 150px; object-fit: cover; filter: grayscale(100%) contrast(1.2); border-bottom: 1px solid var(--term-dim); margin-bottom: 10px; }
+    .card:hover img { filter: grayscale(0%); }
+    .price { font-size: 1.2rem; font-weight: bold; margin: 10px 0; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill { border: 1px dashed var(--term-dim); padding: 6px 10px; font-size: .85rem; color: var(--muted); }
+
+    /* CHIPS */
+    .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip {
+      border: 1px solid var(--term-dim);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      background: var(--chip-bg);
+    }
+    .chip.active { background: var(--term-green); color: #000; }
+
+    /* TABLE */
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+    .data-table th, .data-table td { border: 1px solid var(--term-dim); padding: 8px; text-align: left; vertical-align: top; }
+
+    .status-new { color: yellow; font-weight: bold; }
+    .status-processing { color: cyan; }
+    .status-done { color: lime; }
+    .status-canceled { color: red; }
+
+    /* MODALS */
+    .modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal-content {
+      background: #000;
+      border: 2px solid var(--term-green);
+      padding: 22px;
+      width: 92%;
+      max-width: 720px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-title{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+    .close-btn { cursor: pointer; font-size: 1.7rem; line-height: 1; }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; background: #000; border: 1px solid var(--term-green);
+      padding: 15px; color: var(--term-green); z-index: 2000; display: none;
+      max-width: 520px;
+    }
+
+    .divider{ border-top: 1px dashed var(--term-dim); margin: 12px 0; }
+
+    /* small */
+    .btn-sm{ padding: 6px 10px; font-size:.85rem; }
+    .btn-icon{ padding: 6px 10px; min-width: 44px; display:inline-flex; justify-content:center; align-items:center; }
+    .btn-full{ width: 100%; margin-top: 10px; }
+
+    /* ADD MENU */
+    .add-menu {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      z-index: 100;
+    }
+    .add-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--term-green);
+      color: #000;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 0 20px var(--term-green);
+      transition: 0.3s;
+    }
+    .add-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px var(--term-green);
+    }
+    .add-menu-items {
+      position: absolute;
+      bottom: 70px;
+      right: 0;
+      background: #000;
+      border: 1px solid var(--term-green);
+      padding: 15px;
+      min-width: 200px;
+      display: none;
+    }
+    .add-menu-items.show {
+      display: block;
+    }
+    .add-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      background: transparent;
+      border: 1px solid var(--term-dim);
+    }
+    .add-menu-item:hover {
+      background: var(--term-green);
+      color: #000;
+    }
+
+    /* ORDER HISTORY */
+    .order-card {
+      border: 1px solid var(--term-dim);
+      padding: 15px;
+      margin-bottom: 15px;
+      background: #111;
+    }
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed var(--term-dim);
+    }
+    .order-items {
+      margin: 10px 0;
+    }
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px dotted var(--term-dim);
+    }
+
+    /* ADMIN DELETE BUTTONS */
+    .admin-danger-zone {
+      background: #1a0000;
+      border: 2px solid var(--alert-red);
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .admin-danger-zone h3 {
+      color: var(--alert-red);
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 520px){
+      header{ align-items:flex-start; }
+      .logo{ font-size:1.2rem; }
+      .add-menu { bottom: 20px; right: 20px; }
+      .add-btn { width: 50px; height: 50px; font-size: 20px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="scanline"></div>
+  <div id="toast" class="toast glow"></div>
+
+  <!-- ADD MENU (только для админа) -->
+  <div class="add-menu hidden" id="add-menu">
+    <button class="add-btn" onclick="toggleAddMenu()">+</button>
+    <div class="add-menu-items" id="add-menu-items">
+      <button class="add-menu-item" onclick="openAddProduct()">+ Товар</button>
+      <button class="add-menu-item" onclick="openAddSection()">+ Раздел</button>
+      <button class="add-menu-item" onclick="openAddGroup()">+ Группу</button>
+      <button class="add-menu-item" onclick="openAddCategory()">+ Категорию</button>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div id="auth-screen" class="container">
+    <h1 class="logo glow">DArknet <span style="font-size:0.55em">v3.3</span></h1>
+    <p style="margin: 18px 0;" class="muted">ACCESS_TERMINAL // AUTH_REQUIRED</p>
+
+    <div id="auth-forms" style="width:100%">
+      <input type="email" id="auth-email" placeholder="E-MAIL" autocomplete="email">
+      <input type="password" id="auth-password" placeholder="PASSWORD" autocomplete="current-password">
+
+      <div id="reg-fields" class="hidden">
+        <input type="text" id="auth-username" placeholder="CODENAME (NICK)" autocomplete="username">
+      </div>
+
+      <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: center; flex-wrap:wrap;">
+        <button id="btn-login">ВОЙТИ</button>
+        <button id="btn-register-mode">РЕГИСТРАЦИЯ</button>
+      </div>
+      <p id="auth-error" class="glow-red" style="margin-top: 12px;"></p>
+      <p id="auth-success" class="glow" style="margin-top: 12px; display: none;"></p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app-screen" class="container hidden">
+    <header>
+      <div class="logo glow cursor" id="logo-title">DArknet</div>
+      <nav>
+        <span id="user-display" style="margin-right: 6px; color: #fff;"></span>
+        <span class="pill" id="current-section-pill" style="display:none;"></span>
+
+        <button id="btn-settings" class="btn-sm">SETTINGS</button>
+        <button id="btn-cart">КОРЗИНА (<span id="cart-count">0</span>)</button>
+        <button id="btn-orders" class="btn-sm warning">МОИ ЗАКАЗЫ</button>
+        <button id="btn-admin" class="hidden danger btn-sm">ADM_PANEL</button>
+        <button id="btn-logout" class="btn-sm">ВЫХОД</button>
+      </nav>
+    </header>
+
+    <!-- VIEW: SECTION PICKER -->
+    <div id="sections-view" class="hidden">
+      <div class="row" style="justify-content:space-between; align-items:flex-end;">
+        <div>
+          <h2 class="glow" id="sections-title">ВЫБЕРИ ГЛОБАЛЬНЫЙ РАЗДЕЛ</h2>
+          <div class="muted" id="sections-sub">Сначала раздел → потом товары</div>
+        </div>
+        <div class="row">
+          <button id="btn-refresh-sections" class="btn-sm">REFRESH</button>
+        </div>
+      </div>
+
+      <div id="sections-grid" class="section-grid"></div>
+    </div>
+
+    <!-- VIEW: SHOP -->
+    <div id="shop-view" class="hidden">
+      <div class="row" style="justify-content:space-between; margin-bottom: 12px;">
+        <div class="row" style="gap:10px;">
+          <button id="btn-back-to-sections" class="btn-sm">&lt; НАЗАД К РАЗДЕЛАМ</button>
+          <div class="muted" id="shop-breadcrumb"></div>
+        </div>
+
+        <div class="row">
+          <span class="pill" id="currency-pill"></span>
+          <span class="pill" id="language-pill"></span>
+        </div>
+      </div>
+
+      <div id="groups-nav" class="chips"></div>
+
+      <div class="row" style="margin-bottom: 14px; align-items:stretch;">
+        <input type="text" id="search-input" placeholder="> ПОИСК..." style="max-width: 320px; margin-bottom: 0;">
+        <select id="sort-select" style="max-width: 260px; margin-bottom: 0;">
+          <option value="none">СОРТИРОВКА: НЕТ</option>
+          <option value="price_asc">ЦЕНА: ↑</option>
+          <option value="price_desc">ЦЕНА: ↓</option>
+          <option value="name_asc">ИМЯ: A→Z</option>
+          <option value="stock_asc">ОСТАТОК: ↑</option>
+        </select>
+      </div>
+
+      <div id="products-grid" class="grid"></div>
+
+      <div class="divider"></div>
+
+      <div class="row" style="justify-content:space-between; margin-top: 10px;">
+        <div style="flex:1; min-width: 260px;">
+          <h3 class="glow" id="fav-title">★ ИЗБРАННОЕ</h3>
+          <div id="favorites-list" class="muted" style="margin-top:6px;">—</div>
+        </div>
+        <div style="flex:1; min-width: 260px;">
+          <h3 class="glow" id="recent-title">ПОСЛЕДНИЕ ПРОСМОТРЫ</h3>
+          <div id="recent-list" class="muted" style="margin-top:6px;">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: MY ORDERS -->
+    <div id="orders-view" class="hidden">
+      <div class="row" style="justify-content:space-between; margin-bottom: 16px;">
+        <h2 class="glow">ИСТОРИЯ ЗАКАЗОВ</h2>
+        <div class="row">
+          <button class="btn-sm" onclick="showShop()">&lt; НАЗАД В МАГАЗИН</button>
+          <button class="btn-sm danger" onclick="clearOrderHistory()">ОЧИСТИТЬ ИСТОРИЮ</button>
+        </div>
+      </div>
+      <div id="orders-list"></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="admin-view" class="hidden">
+      <h2 class="glow">ADMIN_PANEL // ROOT_ACCESS</h2>
+      <div class="chips" style="border-bottom: 1px dashed var(--term-dim); padding-bottom: 10px; margin-bottom: 12px;">
+        <button class="btn-sm" onclick="switchAdminTab('products')">ТОВАРЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('sections')">РАЗДЕЛЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('groups')">ГРУППЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('categories')">КАТЕГОРИИ</button>
+        <button class="btn-sm" onclick="switchAdminTab('users')">ПОЛЬЗОВАТЕЛИ</button>
+        <button class="btn-sm" onclick="switchAdminTab('orders')" style="border-color: yellow; color: yellow;">ВСЕ ЗАКАЗЫ</button>
+        <button class="btn-sm" onclick="switchAdminTab('danger')" style="border-color: red; color: red;">ОПАСНАЯ ЗОНА</button>
+        <button class="btn-sm" onclick="showShop()"> &lt; В МАГАЗИН</button>
+      </div>
+      <div id="admin-content"></div>
+    </div>
+  </div>
+
+  <!-- CART MODAL -->
+  <div id="cart-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ВАШ ЗАКАЗ</h2>
+        <span class="close-btn" onclick="toggleModal('cart-modal')">&times;</span>
+      </div>
+      <div id="cart-items" style="margin: 10px 0;"></div>
+      <h3 style="text-align: right;">ИТОГО: <span id="cart-total">0</span> <span id="cart-total-cur">RUB</span></h3>
+      <button onclick="openCheckout()" style="width: 100%; margin-top: 14px;">ОФОРМИТЬ ЗАКАЗ</button>
+      <button class="danger btn-full" onclick="clearCart()">ОЧИСТИТЬ КОРЗИНУ</button>
+    </div>
+  </div>
+
+  <!-- CHECKOUT MODAL -->
+  <div id="checkout-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ДОСТАВКА</h2>
+        <span class="close-btn" onclick="toggleModal('checkout-modal')">&times;</span>
+      </div>
+
+      <form id="checkout-form" onsubmit="processOrder(event)">
+        <input type="text" id="order-address" placeholder="АДРЕС (УЛИЦА, ДОМ)" required>
+        <div style="display: flex; gap: 10px; flex-wrap:wrap;">
+          <input type="text" id="order-entrance" placeholder="ПОДЪЕЗД" required style="min-width:150px;">
+          <input type="text" id="order-apt" placeholder="КВ." required style="min-width:120px;">
+          <input type="text" id="order-floor" placeholder="ЭТАЖ" style="min-width:120px;">
+          <input type="text" id="order-intercom" placeholder="ДОМОФОН" style="min-width:160px;">
+        </div>
+        <textarea id="order-comment" placeholder="КОММЕНТАРИЙ К ЗАКАЗУ" rows="3"></textarea>
+
+        <div style="background: #111; padding: 15px; margin: 15px 0; border: 1px dashed var(--term-dim);">
+          <h3 style="margin-bottom: 10px;">МЕТОД ОПЛАТЫ</h3>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="radio" id="cash" name="payment" value="cash" checked>
+            <label for="cash">Наличные при получении</label>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+            <input type="radio" id="card" name="payment" value="card">
+            <label for="card">Карта курьеру</label>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+            <input type="radio" id="crypto" name="payment" value="crypto">
+            <label for="crypto">Криптовалюта (Bitcoin)</label>
+          </div>
+        </div>
+
+        <div class="row" style="justify-content:space-between;">
+          <button type="button" class="btn-sm" onclick="toggleModal('checkout-modal')">&lt; НАЗАД</button>
+          <button type="submit" style="min-width: 220px;">ПОДТВЕРДИТЬ ЗАКАЗ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">НАСТРОЙКИ</h2>
+        <span class="close-btn" onclick="toggleModal('settings-modal')">&times;</span>
+      </div>
+
+      <div class="row">
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ТЕМА</label>
+          <select id="set-theme">
+            <option value="matrix">Matrix (зелёная)</option>
+            <option value="amber">Amber (янтарь)</option>
+            <option value="ice">Ice (голубая)</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ВАЛЮТА</label>
+          <select id="set-currency">
+            <option value="RUB">RUB ₽</option>
+            <option value="USD">USD $</option>
+            <option value="EUR">EUR €</option>
+            <option value="BTC">BTC ₿</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ЯЗЫК</label>
+          <select id="set-lang">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width: 240px;">
+          <label class="muted">ФОРМАТ ЦЕНЫ</label>
+          <select id="set-price-mode">
+            <option value="pretty">Красиво</option>
+            <option value="raw">Сырой формат</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row" style="justify-content:space-between;">
+        <button class="btn-sm danger" onclick="clearAllLocalData()">ОЧИСТИТЬ ВСЕ ЛОКАЛЬНЫЕ ДАННЫЕ</button>
+        <button class="btn-sm" onclick="saveSettings()">СОХРАНИТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD PRODUCT MODAL -->
+  <div id="add-product-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ДОБАВИТЬ ТОВАР</h2>
+        <span class="close-btn" onclick="toggleModal('add-product-modal')">&times;</span>
+      </div>
+
+      <form id="add-product-form" onsubmit="saveNewProduct(event)">
+        <input id="add-prod-name" placeholder="Название товара" required>
+        <textarea id="add-prod-desc" placeholder="Описание" rows="3"></textarea>
+        <div class="row">
+          <input id="add-prod-price" type="number" placeholder="Цена (RUB)" required style="flex:1;">
+          <input id="add-prod-stock" type="number" placeholder="Остаток" required style="flex:1;">
+        </div>
+        
+        <select id="add-prod-section" required>
+          <option value="">Выберите раздел</option>
+        </select>
+        
+        <select id="add-prod-group">
+          <option value="">Выберите группу (опционально)</option>
+        </select>
+        
+        <select id="add-prod-category">
+          <option value="">Выберите категорию (опционально)</option>
+        </select>
+        
+        <input id="add-prod-image" placeholder="URL изображения (опционально)">
+        <input id="add-prod-tags" placeholder="Теги через запятую (опционально)">
+        
+        <div class="row">
+          <label style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" id="add-prod-active" checked>
+            <span>Активный товар</span>
+          </label>
+        </div>
+        
+        <div class="row" style="justify-content:space-between; margin-top:20px;">
+          <button type="button" class="btn-sm" onclick="toggleModal('add-product-modal')">ОТМЕНА</button>
+          <button type="submit" class="btn-sm">СОЗДАТЬ ТОВАР</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD SECTION MODAL -->
+  <div id="add-section-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ДОБАВИТЬ РАЗДЕЛ</h2>
+        <span class="close-btn" onclick="toggleModal('add-section-modal')">&times;</span>
+      </div>
+
+      <form id="add-section-form" onsubmit="saveNewSection(event)">
+        <input id="add-sec-name" placeholder="Название раздела" required>
+        <textarea id="add-sec-desc" placeholder="Описание раздела" rows="3"></textarea>
+        <input id="add-sec-icon" placeholder="Иконка (emoji или код)">
+        
+        <div class="row" style="justify-content:space-between; margin-top:20px;">
+          <button type="button" class="btn-sm" onclick="toggleModal('add-section-modal')">ОТМЕНА</button>
+          <button type="submit" class="btn-sm">СОЗДАТЬ РАЗДЕЛ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD GROUP MODAL -->
+  <div id="add-group-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ДОБАВИТЬ ГРУППУ</h2>
+        <span class="close-btn" onclick="toggleModal('add-group-modal')">&times;</span>
+      </div>
+
+      <form id="add-group-form" onsubmit="saveNewGroup(event)">
+        <input id="add-group-name" placeholder="Название группы" required>
+        <select id="add-group-section" required>
+          <option value="">Выберите раздел</option>
+        </select>
+        <textarea id="add-group-desc" placeholder="Описание группы" rows="2"></textarea>
+        
+        <div class="row" style="justify-content:space-between; margin-top:20px;">
+          <button type="button" class="btn-sm" onclick="toggleModal('add-group-modal')">ОТМЕНА</button>
+          <button type="submit" class="btn-sm">СОЗДАТЬ ГРУППУ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD CATEGORY MODAL -->
+  <div id="add-category-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">ДОБАВИТЬ КАТЕГОРИЮ</h2>
+        <span class="close-btn" onclick="toggleModal('add-category-modal')">&times;</span>
+      </div>
+
+      <form id="add-category-form" onsubmit="saveNewCategory(event)">
+        <input id="add-cat-name" placeholder="Название категории" required>
+        <select id="add-cat-section" required>
+          <option value="">Выберите раздел</option>
+        </select>
+        <select id="add-cat-group">
+          <option value="">Выберите группу (опционально)</option>
+        </select>
+        <textarea id="add-cat-desc" placeholder="Описание категории" rows="2"></textarea>
+        
+        <div class="row" style="justify-content:space-between; margin-top:20px;">
+          <button type="button" class="btn-sm" onclick="toggleModal('add-category-modal')">ОТМЕНА</button>
+          <button type="submit" class="btn-sm">СОЗДАТЬ КАТЕГОРИЮ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- PRODUCT DETAILS MODAL -->
+  <div id="product-details-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow" id="prod-detail-title">ДЕТАЛИ ТОВАРА</h2>
+        <span class="close-btn" onclick="toggleModal('product-details-modal')">&times;</span>
+      </div>
+      <div id="product-details-content"></div>
+    </div>
+  </div>
+
+  <!-- EDIT PRODUCT MODAL -->
+  <div id="edit-product-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-title">
+        <h2 class="glow">РЕДАКТИРОВАТЬ ТОВАР</h2>
+        <span class="close-btn" onclick="toggleModal('edit-product-modal')">&times;</span>
+      </div>
+
+      <input id="edit-prod-id" class="hidden">
+      <input id="edit-prod-name" placeholder="Название товара" required>
+      <textarea id="edit-prod-desc" placeholder="Описание" rows="3"></textarea>
+      <div class="row">
+        <input id="edit-prod-price" type="number" placeholder="Цена (RUB)" required style="flex:1;">
+        <input id="edit-prod-stock" type="number" placeholder="Остаток" required style="flex:1;">
+      </div>
+      
+      <select id="edit-prod-section" required>
+        <option value="">Выберите раздел</option>
+      </select>
+      
+      <select id="edit-prod-group">
+        <option value="">Выберите группу (опционально)</option>
+      </select>
+      
+      <select id="edit-prod-category">
+        <option value="">Выберите категорию (опционально)</option>
+      </select>
+      
+      <input id="edit-prod-image" placeholder="URL изображения (опционально)">
+      <input id="edit-prod-tags" placeholder="Теги через запятую (опционально)">
+      
+      <div class="row">
+        <label style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="edit-prod-active">
+          <span>Активный товар</span>
+        </label>
+      </div>
+      
+      <div class="row" style="justify-content:space-between; margin-top:20px;">
+        <button type="button" class="btn-sm" onclick="toggleModal('edit-product-modal')">ОТМЕНА</button>
+        <button class="btn-sm" onclick="saveProductEdits()">СОХРАНИТЬ</button>
+        <button class="btn-sm danger" onclick="deleteProductNow()">УДАЛИТЬ ТОВАР</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Используем более стабильную версию Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { 
+      getAuth, 
+      createUserWithEmailAndPassword, 
+      signInWithEmailAndPassword, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      doc, 
+      setDoc, 
+      addDoc, 
+      updateDoc, 
+      deleteDoc, 
+      onSnapshot, 
+      query, 
+      where, 
+      orderBy, 
+      serverTimestamp,
+      getDocs 
+    } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    // --- FIREBASE CONFIG (ПРОВЕРЬТЕ ВАШ КОНФИГ!) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-JdJr9JuTBvriSX7BtKUxDKSTIZXYR9M",
+      authDomain: "darknet-8224d.firebaseapp.com",
+      projectId: "darknet-8224d",
+      storageBucket: "darknet-8224d.firebasestorage.app",
+      messagingSenderId: "772596032023",
+      appId: "1:772596032023:web:98a69482d8d0bbe2d13252",
+      measurementId: "G-ZVP0ZTCSZC"
+    };
+
+    // Проверка конфигурации
+    console.log("Firebase Config:", firebaseConfig);
+
+    // Инициализация Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    console.log("Firebase инициализирован");
+
+    // --- LOCAL SETTINGS ---
+    const DEFAULTS = { theme:"matrix", currency:"RUB", lang:"ru", priceMode:"pretty" };
+    const settings = loadLocal("settings") || { ...DEFAULTS };
+    document.documentElement.dataset.theme = settings.theme;
+
+    // --- FX ---
+    const FX = {
+      RUB: { symbol: "₽", rateFromRUB: 1 },
+      USD: { symbol: "$", rateFromRUB: 1/92 },
+      EUR: { symbol: "€", rateFromRUB: 1/100 },
+      BTC: { symbol: "₿", rateFromRUB: 1/4500000 }
+    };
+
+    // --- UI TEXTS ---
+    const I18N = {
+      ru: {
+        settings:"НАСТРОЙКИ",
+        cart:"КОРЗИНА",
+        logout:"ВЫХОД",
+        pickSection:"ВЫБЕРИ ГЛОБАЛЬНЫЙ РАЗДЕЛ",
+        pickSectionSub:"Сначала раздел → потом товары",
+        backToSections:"< НАЗАД К РАЗДЕЛАМ",
+        allGroups:"ВСЕ ГРУППЫ",
+        searchPlaceholder:"> ПОИСК...",
+        loading:"ЗАГРУЗКА...",
+        empty:"ПУСТО",
+        added:"ДОБАВЛЕНО",
+        cartEmpty:"КОРЗИНА ПУСТА",
+        orderSent:"ЗАКАЗ ОТПРАВЛЕН",
+        err:"ОШИБКА",
+        favorites:"★ ИЗБРАННОЕ",
+        recent:"ПОСЛЕДНИЕ ПРОСМОТРЫ",
+        outOfStock:"НЕТ В НАЛИЧИИ",
+        tooMany:"БОЛЬШЕ НЕЛЬЗЯ",
+        clearHistory:"ОЧИСТИТЬ ИСТОРИЮ",
+        myOrders:"МОИ ЗАКАЗЫ",
+        clearCart:"ОЧИСТИТЬ КОРЗИНУ"
+      },
+      en: {
+        settings:"SETTINGS",
+        cart:"CART",
+        logout:"LOGOUT",
+        pickSection:"CHOOSE GLOBAL SECTION",
+        pickSectionSub:"Section first → products next",
+        backToSections:"< BACK TO SECTIONS",
+        allGroups:"ALL GROUPS",
+        searchPlaceholder:"> SEARCH...",
+        loading:"LOADING...",
+        empty:"EMPTY",
+        added:"ADDED",
+        cartEmpty:"CART IS EMPTY",
+        orderSent:"ORDER SENT",
+        err:"ERROR",
+        favorites:"★ FAVORITES",
+        recent:"RECENTLY VIEWED",
+        outOfStock:"OUT OF STOCK",
+        tooMany:"LIMIT REACHED",
+        clearHistory:"CLEAR HISTORY",
+        myOrders:"MY ORDERS",
+        clearCart:"CLEAR CART"
+      }
+    };
+    const t = (key) => (I18N[settings.lang] && I18N[settings.lang][key]) || I18N.ru[key] || key;
+
+    // --- STATE ---
+    let currentUser = null;
+    let userDocData = null;
+
+    // ПРИ ВХОДЕ ОЧИЩАЕМ КОРЗИНУ
+    let cart = [];
+    let favorites = loadLocal("favorites") || {};
+    let recent = loadLocal("recent") || [];
+
+    let globalSections = [];
+    let groupsBySection = {};
+    let categoriesBySection = {};
+    let categoriesByGroup = {};
+
+    let productsAllCache = [];
+    let productsActiveCache = [];
+
+    let viewMode = "sections";
+    let currentSectionId = null;
+    let currentSectionName = null;
+    let currentGroupId = null;
+
+    // --- ELEMENTS ---
+    const authScreen = document.getElementById('auth-screen');
+    const appScreen = document.getElementById('app-screen');
+    const authError = document.getElementById('auth-error');
+    const authSuccess = document.getElementById('auth-success');
+
+    const sectionsView = document.getElementById('sections-view');
+    const shopView = document.getElementById('shop-view');
+    const adminView = document.getElementById('admin-view');
+    const ordersView = document.getElementById('orders-view');
+
+    const sectionsGrid = document.getElementById('sections-grid');
+    const groupsNav = document.getElementById('groups-nav');
+    const productsGrid = document.getElementById('products-grid');
+    const searchInput = document.getElementById('search-input');
+    const sortSelect = document.getElementById('sort-select');
+
+    const currentSectionPill = document.getElementById('current-section-pill');
+    const shopBreadcrumb = document.getElementById('shop-breadcrumb');
+    const currencyPill = document.getElementById('currency-pill');
+    const languagePill = document.getElementById('language-pill');
+
+    // --- HEADER BUTTONS ---
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      signOut(auth).then(() => {
+        console.log("Пользователь вышел");
+      }).catch((error) => {
+        console.error("Ошибка при выходе:", error);
+      });
+    });
+    
+    document.getElementById('btn-settings').addEventListener('click', () => { 
+      syncSettingsModal(); 
+      toggleModal('settings-modal'); 
+    });
+    
+    document.getElementById('btn-cart').addEventListener('click', () => { 
+      updateCartUI(); 
+      toggleModal('cart-modal'); 
+    });
+    
+    document.getElementById('btn-admin').addEventListener('click', () => { 
+      showAdmin(); 
+      switchAdminTab('products'); 
+    });
+    
+    document.getElementById('btn-orders').addEventListener('click', () => { 
+      showOrders(); 
+    });
+
+    document.getElementById('btn-back-to-sections').addEventListener('click', () => {
+      currentSectionId = null; 
+      currentSectionName = null; 
+      currentGroupId = null;
+      showSections();
+    });
+
+    document.getElementById('btn-refresh-sections').addEventListener('click', () => {
+      showToast("REFRESH...");
+      renderSections();
+    });
+
+    searchInput.addEventListener('input', () => renderProducts());
+    sortSelect.addEventListener('change', () => renderProducts());
+
+    // --- LOGIN / REGISTER ---
+    let isRegisterMode = false;
+    document.getElementById('btn-register-mode').addEventListener('click', () => {
+      isRegisterMode = !isRegisterMode;
+      document.getElementById('reg-fields').classList.toggle('hidden');
+      document.getElementById('btn-register-mode').innerText = isRegisterMode ? "НАЗАД" : "РЕГИСТРАЦИЯ";
+      document.getElementById('btn-login').innerText = isRegisterMode ? "ЗАРЕГИСТРИРОВАТЬСЯ" : "ВОЙТИ";
+      authError.innerText = "";
+      authSuccess.style.display = "none";
+    });
+
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-password').value.trim();
+      const username = document.getElementById('auth-username').value.trim();
+      
+      authError.innerText = "";
+      authSuccess.style.display = "none";
+      
+      // Проверка ввода
+      if (!email || !pass) {
+        authError.innerText = "Заполните email и пароль";
+        return;
+      }
+      
+      if (isRegisterMode && !username) {
+        authError.innerText = "Укажите никнейм";
+        return;
+      }
+      
+      try {
+        if (isRegisterMode) {
+          console.log("Попытка регистрации:", { email, username });
+          
+          // Регистрация нового пользователя
+          const cred = await createUserWithEmailAndPassword(auth, email, pass);
+          console.log("Пользователь создан:", cred.user.uid);
+          
+          // Создаем документ пользователя в Firestore
+          await setDoc(doc(db, "users", cred.user.uid), {
+            email: email,
+            username: username,
+            role: "user",
+            banned: false,
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp()
+          });
+          
+          console.log("Данные пользователя сохранены в Firestore");
+          
+          authSuccess.innerText = "Регистрация успешна! Вы вошли в систему.";
+          authSuccess.style.display = "block";
+          
+          // Очищаем поля
+          document.getElementById('auth-email').value = '';
+          document.getElementById('auth-password').value = '';
+          document.getElementById('auth-username').value = '';
+          
+          // Переключаем обратно на вход
+          isRegisterMode = false;
+          document.getElementById('reg-fields').classList.add('hidden');
+          document.getElementById('btn-register-mode').innerText = "РЕГИСТРАЦИЯ";
+          document.getElementById('btn-login').innerText = "ВОЙТИ";
+          
+        } else {
+          console.log("Попытка входа:", { email });
+          
+          // Вход существующего пользователя
+          await signInWithEmailAndPassword(auth, email, pass);
+          console.log("Вход успешен");
+          
+          authSuccess.innerText = "Вход выполнен успешно!";
+          authSuccess.style.display = "block";
+          
+          // Очищаем поля
+          document.getElementById('auth-email').value = '';
+          document.getElementById('auth-password').value = '';
+        }
+      } catch (e) {
+        console.error("Ошибка аутентификации:", e);
+        
+        // Более понятные сообщения об ошибках
+        let errorMessage = "ОШИБКА: ";
+        
+        if (e.code) {
+          switch(e.code) {
+            case 'auth/email-already-in-use':
+              errorMessage = "Этот email уже зарегистрирован";
+              break;
+            case 'auth/invalid-email':
+              errorMessage = "Неверный формат email";
+              break;
+            case 'auth/weak-password':
+              errorMessage = "Слабый пароль (минимум 6 символов)";
+              break;
+            case 'auth/user-not-found':
+              errorMessage = "Пользователь не найден";
+              break;
+            case 'auth/wrong-password':
+              errorMessage = "Неверный пароль";
+              break;
+            case 'auth/too-many-requests':
+              errorMessage = "Слишком много попыток. Попробуйте позже";
+              break;
+            case 'auth/network-request-failed':
+              errorMessage = "Ошибка сети. Проверьте соединение";
+              break;
+            default:
+              errorMessage = e.message || "Неизвестная ошибка";
+          }
+        } else {
+          errorMessage += e.message || "Неизвестная ошибка";
+        }
+        
+        authError.innerText = errorMessage;
+      }
+    });
+
+    // --- AUTH STATE ---
+    onAuthStateChanged(auth, async (user) => {
+      console.log("Состояние аутентификации изменено:", user ? "Пользователь вошел" : "Пользователь вышел");
+      
+      if (user) {
+        console.log("Текущий пользователь:", user.uid, user.email);
+        
+        try {
+          const userRef = doc(db, "users", user.uid);
+          
+          // Используем getDoc для однократного получения данных
+          const userSnapshot = await getDocs(query(collection(db, "users"), where("__name__", "==", user.uid)));
+          
+          if (userSnapshot.empty) {
+            console.log("Документ пользователя не найден, создаем...");
+            // Если документа нет, создаем его
+            await setDoc(userRef, {
+              email: user.email,
+              username: user.email.split('@')[0] || 'user',
+              role: "user",
+              banned: false,
+              createdAt: serverTimestamp(),
+              lastLogin: serverTimestamp()
+            });
+            
+            userDocData = {
+              email: user.email,
+              username: user.email.split('@')[0] || 'user',
+              role: "user",
+              banned: false
+            };
+          } else {
+            userDocData = userSnapshot.docs[0].data();
+            console.log("Данные пользователя:", userDocData);
+            
+            // Обновляем время последнего входа
+            await updateDoc(userRef, {
+              lastLogin: serverTimestamp()
+            });
+            
+            if (userDocData.banned) {
+              await signOut(auth);
+              showToast("ВЫ ЗАБЛОКИРОВАНЫ", true);
+              return;
+            }
+          }
+          
+          currentUser = user;
+          
+          // ОЧИЩАЕМ КОРЗИНУ ПРИ ВХОДЕ КАЖДОГО ПОЛЬЗОВАТЕЛЯ
+          cart = [];
+          saveLocal("cart", cart);
+          
+          initAppUI();
+          
+        } catch (error) {
+          console.error("Ошибка загрузки данных пользователя:", error);
+          showToast("Ошибка загрузки данных", true);
+        }
+        
+      } else {
+        console.log("Пользователь вышел");
+        currentUser = null;
+        userDocData = null;
+        showAuthUI();
+      }
+    });
+
+    function showAuthUI() {
+      console.log("Показываем экран авторизации");
+      authScreen.classList.remove('hidden');
+      appScreen.classList.add('hidden');
+      document.getElementById('add-menu').classList.add('hidden');
+    }
+
+    function initAppUI() {
+      console.log("Инициализация UI приложения");
+      
+      authScreen.classList.add('hidden');
+      appScreen.classList.remove('hidden');
+
+      document.getElementById('user-display').innerText = `[${userDocData.username}]`;
+      
+      // Показываем меню добавления только для админа
+      if (userDocData.role === 'admin') {
+        console.log("Пользователь является администратором");
+        document.getElementById('btn-admin').classList.remove('hidden');
+        document.getElementById('add-menu').classList.remove('hidden');
+      } else {
+        document.getElementById('btn-admin').classList.add('hidden');
+        document.getElementById('add-menu').classList.add('hidden');
+      }
+
+      // Обновляем текст кнопки заказов
+      document.getElementById('btn-orders').innerText = t('myOrders');
+
+      // Загружаем данные
+      bindGlobalSections();
+      bindGroups();
+      bindCategories();
+      bindAllProducts();
+
+      showSections();
+      updateHeaderMeta();
+      updateCartCount();
+      renderFavRecent();
+      
+      showToast(`Добро пожаловать, ${userDocData.username}!`);
+    }
+
+    // --- LIVE LOADERS ---
+    function bindGlobalSections() {
+      console.log("Загрузка разделов...");
+      onSnapshot(query(collection(db, "globalSections")), (snap) => {
+        globalSections = [];
+        snap.forEach(d => globalSections.push({ id:d.id, ...d.data() }));
+        globalSections.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+        console.log("Разделы загружены:", globalSections.length);
+        renderSections();
+        updateAddModals();
+      }, (error) => {
+        console.error("Ошибка загрузки разделов:", error);
+      });
+    }
+
+    function bindGroups() {
+      console.log("Загрузка групп...");
+      onSnapshot(query(collection(db, "groups")), (snap) => {
+        groupsBySection = {};
+        snap.forEach(d => {
+          const g = { id:d.id, ...d.data() };
+          const secId = g.globalSectionId;
+          if (!secId) return;
+          if (!groupsBySection[secId]) groupsBySection[secId] = [];
+          groupsBySection[secId].push(g);
+        });
+        Object.keys(groupsBySection).forEach(secId => {
+          groupsBySection[secId].sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+        });
+        console.log("Группы загружены");
+        renderGroups();
+        updateAddModals();
+      }, (error) => {
+        console.error("Ошибка загрузки групп:", error);
+      });
+    }
+
+    function bindCategories() {
+      console.log("Загрузка категорий...");
+      onSnapshot(query(collection(db, "categories")), (snap) => {
+        categoriesBySection = {};
+        categoriesByGroup = {};
+        snap.forEach(d => {
+          const cat = { id:d.id, ...d.data() };
+          const secId = cat.globalSectionId;
+          const groupId = cat.groupId;
+          
+          if (secId) {
+            if (!categoriesBySection[secId]) categoriesBySection[secId] = [];
+            categoriesBySection[secId].push(cat);
+          }
+          
+          if (groupId) {
+            if (!categoriesByGroup[groupId]) categoriesByGroup[groupId] = [];
+            categoriesByGroup[groupId].push(cat);
+          }
+        });
+        console.log("Категории загружены");
+        updateAddModals();
+      }, (error) => {
+        console.error("Ошибка загрузки категорий:", error);
+      });
+    }
+
+    function bindAllProducts() {
+      console.log("Загрузка товаров...");
+      onSnapshot(query(collection(db, "products")), (snap) => {
+        productsAllCache = [];
+        snap.forEach(d => productsAllCache.push({ id:d.id, ...d.data() }));
+
+        productsActiveCache = productsAllCache.filter(p => p.active === true);
+        console.log("Товары загружены:", productsAllCache.length, "всего,", productsActiveCache.length, "активных");
+        renderProducts();
+        renderSections();
+        renderFavRecent();
+      }, (error) => {
+        console.error("Ошибка загрузки товаров:", error);
+      });
+    }
+
+    // --- VIEW SWITCH ---
+    function showSections() {
+      viewMode = "sections";
+      sectionsView.classList.remove('hidden');
+      shopView.classList.add('hidden');
+      adminView.classList.add('hidden');
+      ordersView.classList.add('hidden');
+
+      document.getElementById('sections-title').innerText = t("pickSection");
+      document.getElementById('sections-sub').innerText = t("pickSectionSub");
+
+      currentSectionPill.style.display = "none";
+      shopBreadcrumb.innerText = "";
+      updateHeaderMeta();
+    }
+
+    function showShop() {
+      viewMode = "shop";
+      sectionsView.classList.add('hidden');
+      shopView.classList.remove('hidden');
+      adminView.classList.add('hidden');
+      ordersView.classList.add('hidden');
+      updateHeaderMeta();
+      renderGroups();
+      renderProducts();
+      renderFavRecent();
+    }
+    window.showShop = showShop;
+
+    function showOrders() {
+      viewMode = "orders";
+      sectionsView.classList.add('hidden');
+      shopView.classList.add('hidden');
+      adminView.classList.add('hidden');
+      ordersView.classList.remove('hidden');
+      loadUserOrders();
+    }
+
+    function showAdmin(){
+      viewMode = "admin";
+      sectionsView.classList.add('hidden');
+      shopView.classList.add('hidden');
+      adminView.classList.remove('hidden');
+      ordersView.classList.add('hidden');
+      updateHeaderMeta();
+    }
+
+    function updateHeaderMeta(){
+      currencyPill.textContent = `${settings.currency} ${FX[settings.currency]?.symbol ?? ""}`;
+      languagePill.textContent = settings.lang.toUpperCase();
+
+      document.getElementById('btn-settings').innerText = t("settings");
+      document.getElementById('btn-logout').innerText = t("logout");
+      document.getElementById('btn-back-to-sections').innerText = t("backToSections");
+      searchInput.placeholder = t("searchPlaceholder");
+      document.getElementById('fav-title').innerText = t("favorites");
+      document.getElementById('recent-title').innerText = t("recent");
+
+      if(currentSectionId && currentSectionName){
+        currentSectionPill.style.display = "inline-flex";
+        currentSectionPill.textContent = `РАЗДЕЛ: ${currentSectionName}`;
+        shopBreadcrumb.innerText = `${currentSectionName}${currentGroupId ? " / " + (getGroupName(currentSectionId, currentGroupId) || "") : ""}`;
+      } else {
+        currentSectionPill.style.display = "none";
+      }
+    }
+
+    // --- SECTION RENDER ---
+    function renderSections(){
+      if(viewMode !== "sections") return;
+
+      const counts = {};
+      for(const p of productsActiveCache){
+        const sid = p.globalSectionId;
+        if(!sid) continue;
+        counts[sid] = (counts[sid] || 0) + 1;
+      }
+
+      sectionsGrid.innerHTML = "";
+      if(globalSections.length === 0){
+        sectionsGrid.innerHTML = `<div class="muted">${t("loading")}</div>`;
+        return;
+      }
+
+      globalSections.forEach(sec => {
+        const div = document.createElement('div');
+        div.className = "section-card";
+        div.innerHTML = `
+          <div class="title glow">${escapeHtml(sec.name || "NONAME")} ${sec.icon || ""}</div>
+          <div class="meta">
+            <div>Товаров: <span class="glow">${counts[sec.id] || 0}</span></div>
+            ${sec.description ? `<div style="margin-top:4px; font-size:0.8rem;">${escapeHtml(sec.description.substring(0, 50))}...</div>` : ''}
+          </div>
+        `;
+        div.addEventListener('click', () => {
+          currentSectionId = sec.id;
+          currentSectionName = sec.name || "SECTION";
+          currentGroupId = null;
+          showShop();
+        });
+        sectionsGrid.appendChild(div);
+      });
+    }
+
+    // --- GROUPS RENDER ---
+    function renderGroups(){
+      if(viewMode !== "shop") return;
+      groupsNav.innerHTML = "";
+
+      const list = (currentSectionId && groupsBySection[currentSectionId]) ? groupsBySection[currentSectionId] : [];
+
+      const all = document.createElement('div');
+      all.className = "chip " + (currentGroupId === null ? "active" : "");
+      all.textContent = t("allGroups");
+      all.onclick = () => { currentGroupId = null; renderGroups(); renderProducts(); updateHeaderMeta(); };
+      groupsNav.appendChild(all);
+
+      if(!currentSectionId) return;
+
+      list.forEach(g => {
+        const c = document.createElement('div');
+        c.className = "chip " + (currentGroupId === g.id ? "active" : "");
+        c.textContent = g.name || "GROUP";
+        c.onclick = () => { currentGroupId = g.id; renderGroups(); renderProducts(); updateHeaderMeta(); };
+        groupsNav.appendChild(c);
+      });
+    }
+
+    // --- PRODUCTS RENDER ---
+    function renderProducts(){
+      if(viewMode !== "shop") return;
+      
+      let filtered = productsActiveCache.filter(p => p.globalSectionId === currentSectionId);
+      
+      if(currentGroupId) {
+        filtered = filtered.filter(p => p.groupId === currentGroupId);
+      }
+      
+      const searchTerm = searchInput.value.trim().toLowerCase();
+      if(searchTerm) {
+        filtered = filtered.filter(p => 
+          (p.name && p.name.toLowerCase().includes(searchTerm)) ||
+          (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+          (p.tags && p.tags.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      const sortMode = sortSelect.value;
+      switch(sortMode) {
+        case 'price_asc': filtered.sort((a,b) => (a.price||0) - (b.price||0)); break;
+        case 'price_desc': filtered.sort((a,b) => (b.price||0) - (a.price||0)); break;
+        case 'name_asc': filtered.sort((a,b) => (a.name||"").localeCompare(b.name||"")); break;
+        case 'stock_asc': filtered.sort((a,b) => (a.stock||0) - (b.stock||0)); break;
+      }
+      
+      productsGrid.innerHTML = "";
+      
+      if(!currentSectionId) {
+        productsGrid.innerHTML = `<div class="muted">${t("pickSection")}</div>`;
+        return;
+      }
+      
+      if(filtered.length === 0) {
+        productsGrid.innerHTML = `<div class="muted">${t("empty")}</div>`;
+        return;
+      }
+      
+      filtered.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        const priceInRUB = product.price || 0;
+        const convertedPrice = priceInRUB * FX[settings.currency].rateFromRUB;
+        const displayPrice = settings.priceMode === 'pretty' 
+          ? formatPrice(convertedPrice)
+          : convertedPrice.toFixed(2);
+        
+        const stock = product.stock || 0;
+        const canAdd = stock > 0 && (cart.filter(item => item.id === product.id).length === 0 || 
+          cart.find(item => item.id === product.id)?.quantity < stock);
+        
+        const section = globalSections.find(s => s.id === product.globalSectionId);
+        const group = groupsBySection[product.globalSectionId]?.find(g => g.id === product.groupId);
+        
+        card.innerHTML = `
+          ${product.imageUrl ? `<img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name || '')}">` : '<div style="height:150px;background:#111;border-bottom:1px solid var(--term-dim)"></div>'}
+          <div style="flex-grow:1;">
+            <h3 style="margin-bottom:6px; font-size:1rem;">${escapeHtml(product.name || "NO NAME")}</h3>
+            <div class="muted" style="font-size:0.85rem; margin-bottom:8px; min-height:40px;">${escapeHtml(product.description?.substring(0,60) || "")}...</div>
+            <div class="price">
+              <span class="glow">${displayPrice} ${FX[settings.currency].symbol}</span>
+              <span class="muted" style="font-size:0.85rem;">${stock} шт.</span>
+            </div>
+            ${group ? `<div style="font-size:0.8rem; color:var(--term-dim);">Группа: ${escapeHtml(group.name)}</div>` : ''}
+          </div>
+          <div class="row" style="margin-top:12px;">
+            <button class="btn-sm" onclick="showProductDetails('${product.id}')" style="flex:1;">ПОДРОБНЕЕ</button>
+            <button class="btn-sm ${!canAdd ? 'danger' : ''}" onclick="addToCart('${product.id}')" ${!canAdd ? 'disabled' : ''} style="flex:1;">
+              ${stock > 0 ? (favorites[product.id] ? '★ В КОРЗИНУ' : 'В КОРЗИНУ') : t('outOfStock')}
+            </button>
+          </div>
+          <div class="row" style="margin-top:8px; justify-content:center;">
+            <button class="btn-icon" onclick="toggleFavorite('${product.id}')">
+              ${favorites[product.id] ? '★' : '☆'}
+            </button>
+            ${userDocData?.role === 'admin' ? `<button class="btn-icon danger" onclick="editProduct('${product.id}')">E</button>` : ''}
+          </div>
+        `;
+        
+        productsGrid.appendChild(card);
+      });
+    }
+    
+    // --- ADD MENU FUNCTIONS ---
+    window.toggleAddMenu = function() {
+      document.getElementById('add-menu-items').classList.toggle('show');
+    }
+    
+    // Закрываем меню при клике вне его
+    document.addEventListener('click', function(event) {
+      const addMenu = document.getElementById('add-menu');
+      const addMenuItems = document.getElementById('add-menu-items');
+      const addBtn = document.querySelector('.add-btn');
+      
+      if (addMenuItems.classList.contains('show') && 
+          !addMenu.contains(event.target) && 
+          !addBtn.contains(event.target)) {
+        addMenuItems.classList.remove('show');
+      }
+    });
+    
+    window.openAddProduct = function() {
+      toggleAddMenu();
+      toggleModal('add-product-modal');
+    }
+    
+    window.openAddSection = function() {
+      toggleAddMenu();
+      toggleModal('add-section-modal');
+    }
+    
+    window.openAddGroup = function() {
+      toggleAddMenu();
+      toggleModal('add-group-modal');
+    }
+    
+    window.openAddCategory = function() {
+      toggleAddMenu();
+      toggleModal('add-category-modal');
+    }
+    
+    function updateAddModals() {
+      updateSectionSelects();
+      updateGroupSelects();
+    }
+    
+    function updateSectionSelects() {
+      const sectionSelects = [
+        document.getElementById('add-prod-section'),
+        document.getElementById('add-group-section'),
+        document.getElementById('add-cat-section'),
+        document.getElementById('edit-prod-section')
+      ];
+      
+      sectionSelects.forEach(select => {
+        if (!select) return;
+        
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Выберите раздел</option>';
+        
+        globalSections.forEach(sec => {
+          const option = document.createElement('option');
+          option.value = sec.id;
+          option.textContent = sec.name || "Раздел";
+          if (sec.id === currentValue) option.selected = true;
+          select.appendChild(option);
+        });
+      });
+    }
+    
+    function updateGroupSelects() {
+      const groupSelects = [
+        document.getElementById('add-prod-group'),
+        document.getElementById('add-cat-group'),
+        document.getElementById('edit-prod-group')
+      ];
+      
+      groupSelects.forEach(select => {
+        if (!select) return;
+        
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Выберите группу (опционально)</option>';
+        
+        // Для продуктов - группы из текущего раздела
+        const sectionSelect = document.getElementById('add-prod-section');
+        const sectionId = sectionSelect ? sectionSelect.value : null;
+        
+        if (sectionId && groupsBySection[sectionId]) {
+          groupsBySection[sectionId].forEach(group => {
+            const option = document.createElement('option');
+            option.value = group.id;
+            option.textContent = group.name || "Группа";
+            if (group.id === currentValue) option.selected = true;
+            select.appendChild(option);
+          });
+        }
+      });
+    }
+    
+    // Обновляем список групп при смене раздела
+    document.getElementById('add-prod-section')?.addEventListener('change', function() {
+      updateGroupSelects();
+    });
+    
+    document.getElementById('edit-prod-section')?.addEventListener('change', function() {
+      updateGroupSelects();
+    });
+    
+    // --- SAVE NEW ITEMS ---
+    window.saveNewProduct = async function(e) {
+      e.preventDefault();
+      
+      try {
+        const productData = {
+          name: document.getElementById('add-prod-name').value,
+          description: document.getElementById('add-prod-desc').value || "",
+          price: parseFloat(document.getElementById('add-prod-price').value) || 0,
+          stock: parseInt(document.getElementById('add-prod-stock').value) || 0,
+          globalSectionId: document.getElementById('add-prod-section').value,
+          groupId: document.getElementById('add-prod-group').value || null,
+          categoryId: document.getElementById('add-prod-category').value || null,
+          imageUrl: document.getElementById('add-prod-image').value || "",
+          tags: document.getElementById('add-prod-tags').value || "",
+          active: document.getElementById('add-prod-active').checked,
+          createdAt: serverTimestamp()
+        };
+        
+        await addDoc(collection(db, "products"), productData);
+        
+        document.getElementById('add-product-form').reset();
+        toggleModal('add-product-modal');
+        showToast("Товар успешно добавлен");
+        
+      } catch(error) {
+        console.error("Save product error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.saveNewSection = async function(e) {
+      e.preventDefault();
+      
+      try {
+        const sectionData = {
+          name: document.getElementById('add-sec-name').value,
+          description: document.getElementById('add-sec-desc').value || "",
+          icon: document.getElementById('add-sec-icon').value || "",
+          createdAt: serverTimestamp()
+        };
+        
+        await addDoc(collection(db, "globalSections"), sectionData);
+        
+        document.getElementById('add-section-form').reset();
+        toggleModal('add-section-modal');
+        showToast("Раздел успешно добавлен");
+        
+      } catch(error) {
+        console.error("Save section error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.saveNewGroup = async function(e) {
+      e.preventDefault();
+      
+      try {
+        const groupData = {
+          name: document.getElementById('add-group-name').value,
+          globalSectionId: document.getElementById('add-group-section').value,
+          description: document.getElementById('add-group-desc').value || "",
+          createdAt: serverTimestamp()
+        };
+        
+        await addDoc(collection(db, "groups"), groupData);
+        
+        document.getElementById('add-group-form').reset();
+        toggleModal('add-group-modal');
+        showToast("Группа успешно добавлена");
+        
+      } catch(error) {
+        console.error("Save group error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.saveNewCategory = async function(e) {
+      e.preventDefault();
+      
+      try {
+        const categoryData = {
+          name: document.getElementById('add-cat-name').value,
+          globalSectionId: document.getElementById('add-cat-section').value,
+          groupId: document.getElementById('add-cat-group').value || null,
+          description: document.getElementById('add-cat-desc').value || "",
+          createdAt: serverTimestamp()
+        };
+        
+        await addDoc(collection(db, "categories"), categoryData);
+        
+        document.getElementById('add-category-form').reset();
+        toggleModal('add-category-modal');
+        showToast("Категория успешно добавлена");
+        
+      } catch(error) {
+        console.error("Save category error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    // --- CART FUNCTIONS ---
+    window.addToCart = function(productId) {
+      const product = productsAllCache.find(p => p.id === productId);
+      if(!product) return;
+      
+      const stock = product.stock || 0;
+      const existing = cart.find(item => item.id === productId);
+      
+      if(existing) {
+        if(existing.quantity >= stock) {
+          showToast(t('tooMany'), true);
+          return;
+        }
+        existing.quantity += 1;
+      } else {
+        if(stock <= 0) {
+          showToast(t('outOfStock'), true);
+          return;
+        }
+        cart.push({
+          id: productId,
+          name: product.name || "Товар",
+          price: product.price || 0,
+          quantity: 1,
+          imageUrl: product.imageUrl
+        });
+      }
+      
+      saveLocal("cart", cart);
+      updateCartCount();
+      showToast(t('added'));
+      renderProducts();
+    }
+    
+    window.removeFromCart = function(productId) {
+      cart = cart.filter(item => item.id !== productId);
+      saveLocal("cart", cart);
+      updateCartCount();
+      updateCartUI();
+      renderProducts();
+    }
+    
+    window.updateCartQty = function(productId, delta) {
+      const item = cart.find(item => item.id === productId);
+      if(!item) return;
+      
+      const product = productsAllCache.find(p => p.id === productId);
+      const stock = product?.stock || 0;
+      
+      item.quantity += delta;
+      if(item.quantity < 1) {
+        cart = cart.filter(item => item.id !== productId);
+      } else if(item.quantity > stock) {
+        item.quantity = stock;
+        showToast(t('tooMany'), true);
+      }
+      
+      saveLocal("cart", cart);
+      updateCartCount();
+      updateCartUI();
+      renderProducts();
+    }
+    
+    window.clearCart = function() {
+      if(cart.length === 0) return;
+      if(confirm("Очистить корзину?")) {
+        cart = [];
+        saveLocal("cart", cart);
+        updateCartCount();
+        updateCartUI();
+        showToast("Корзина очищена");
+      }
+    }
+    
+    function updateCartCount() {
+      const total = cart.reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('cart-count').innerText = total;
+    }
+    
+    function updateCartUI() {
+      const container = document.getElementById('cart-items');
+      const totalEl = document.getElementById('cart-total');
+      const totalCurEl = document.getElementById('cart-total-cur');
+      
+      if(cart.length === 0) {
+        container.innerHTML = `<div class="muted">${t('cartEmpty')}</div>`;
+        totalEl.innerText = '0';
+        totalCurEl.innerText = settings.currency;
+        return;
+      }
+      
+      let html = '';
+      let totalRUB = 0;
+      
+      cart.forEach(item => {
+        totalRUB += item.price * item.quantity;
+        const price = formatPrice((item.price * FX[settings.currency].rateFromRUB) * item.quantity);
+        
+        html += `
+          <div class="row" style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px dashed var(--term-dim);">
+            ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" style="width:60px; height:60px; object-fit:cover;" alt="">` : '<div style="width:60px; height:60px; background:#111;"></div>'}
+            <div style="flex-grow:1;">
+              <div style="font-weight:bold;">${escapeHtml(item.name)}</div>
+              <div class="muted">${formatPrice(item.price * FX[settings.currency].rateFromRUB)} ${FX[settings.currency].symbol} × ${item.quantity}</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="glow">${price} ${FX[settings.currency].symbol}</div>
+              <div class="row" style="margin-top:6px; justify-content:flex-end;">
+                <button class="btn-icon" onclick="updateCartQty('${item.id}', -1)">-</button>
+                <span style="min-width:30px; text-align:center;">${item.quantity}</span>
+                <button class="btn-icon" onclick="updateCartQty('${item.id}', 1)">+</button>
+                <button class="btn-icon danger" onclick="removeFromCart('${item.id}')">×</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+      totalEl.innerText = formatPrice(totalRUB * FX[settings.currency].rateFromRUB);
+      totalCurEl.innerText = settings.currency;
+    }
+    
+    // --- CHECKOUT FUNCTIONS ---
+    window.openCheckout = function() {
+      if(cart.length === 0) {
+        showToast(t('cartEmpty'), true);
+        return;
+      }
+      toggleModal('cart-modal');
+      toggleModal('checkout-modal');
+    }
+    
+    window.processOrder = async function(e) {
+      e.preventDefault();
+      
+      if(!currentUser || !userDocData) {
+        showToast("Требуется авторизация", true);
+        return;
+      }
+      
+      if(cart.length === 0) {
+        showToast(t('cartEmpty'), true);
+        return;
+      }
+      
+      try {
+        const address = document.getElementById('order-address').value;
+        const entrance = document.getElementById('order-entrance').value;
+        const apt = document.getElementById('order-apt').value;
+        const floor = document.getElementById('order-floor').value;
+        const intercom = document.getElementById('order-intercom').value;
+        const comment = document.getElementById('order-comment').value;
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+        
+        const totalRUB = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        
+        // Обновляем остатки товаров
+        for (const item of cart) {
+          const product = productsAllCache.find(p => p.id === item.id);
+          if (product) {
+            const newStock = (product.stock || 0) - item.quantity;
+            await updateDoc(doc(db, "products", item.id), {
+              stock: Math.max(0, newStock)
+            });
+          }
+        }
+        
+        const orderData = {
+          userId: currentUser.uid,
+          username: userDocData.username,
+          email: userDocData.email,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          total: totalRUB,
+          currency: "RUB",
+          status: "new",
+          address: {
+            street: address,
+            entrance,
+            apartment: apt,
+            floor,
+            intercom
+          },
+          paymentMethod,
+          comment,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        await addDoc(collection(db, "orders"), orderData);
+        
+        cart = [];
+        saveLocal("cart", cart);
+        updateCartCount();
+        
+        toggleModal('checkout-modal');
+        document.getElementById('checkout-form').reset();
+        
+        showToast(t('orderSent'));
+        
+      } catch(error) {
+        console.error("Order error:", error);
+        showToast(`${t('err')}: ${error.message}`, true);
+      }
+    }
+    
+    // --- ORDER HISTORY ---
+    async function loadUserOrders() {
+      if (!currentUser) return;
+      
+      const ordersList = document.getElementById('orders-list');
+      ordersList.innerHTML = `<div class="muted">${t('loading')}...</div>`;
+      
+      try {
+        const q = query(
+          collection(db, "orders"),
+          where("userId", "==", currentUser.uid),
+          orderBy("createdAt", "desc")
+        );
+        
+        onSnapshot(q, (snapshot) => {
+          const orders = [];
+          snapshot.forEach(doc => {
+            orders.push({ id: doc.id, ...doc.data() });
+          });
+          
+          renderOrdersList(orders);
+        });
+      } catch (error) {
+        console.error("Load orders error:", error);
+        ordersList.innerHTML = `<div class="glow-red">Ошибка загрузки заказов</div>`;
+      }
+    }
+    
+    function renderOrdersList(orders) {
+      const ordersList = document.getElementById('orders-list');
+      
+      if (orders.length === 0) {
+        ordersList.innerHTML = `<div class="muted">У вас еще нет заказов</div>`;
+        return;
+      }
+      
+      let html = '';
+      
+      orders.forEach(order => {
+        const date = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString('ru-RU') : "—";
+        const statusClass = `status-${order.status || 'new'}`;
+        const statusText = order.status === 'new' ? 'НОВЫЙ' : 
+                          order.status === 'processing' ? 'В ОБРАБОТКЕ' :
+                          order.status === 'done' ? 'ВЫПОЛНЕН' :
+                          order.status === 'canceled' ? 'ОТМЕНЕН' : order.status;
+        
+        html += `
+          <div class="order-card">
+            <div class="order-header">
+              <div>
+                <strong>Заказ #${order.id.substring(0, 8)}</strong>
+                <div class="muted" style="font-size:0.9rem;">${date}</div>
+              </div>
+              <div class="${statusClass}">${statusText}</div>
+            </div>
+            
+            <div class="order-items">
+              ${order.items.map(item => `
+                <div class="order-item">
+                  <span>${escapeHtml(item.name)} × ${item.quantity}</span>
+                  <span>${formatPrice(item.price * item.quantity)} ₽</span>
+                </div>
+              `).join('')}
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--term-dim);">
+              <div>
+                <div><strong>Способ оплаты:</strong> ${getPaymentMethodText(order.paymentMethod)}</div>
+                <div style="font-size:0.9rem; margin-top: 5px;">
+                  <strong>Адрес:</strong> ${escapeHtml(order.address?.street || '')}, 
+                  кв. ${order.address?.apartment || ''}, 
+                  подъезд ${order.address?.entrance || ''}
+                </div>
+                ${order.comment ? `<div style="font-size:0.9rem; margin-top: 5px;"><strong>Комментарий:</strong> ${escapeHtml(order.comment)}</div>` : ''}
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 1.2rem; font-weight: bold;" class="glow">
+                  ${formatPrice(order.total || 0)} ₽
+                </div>
+                ${order.status === 'new' ? `<button class="btn-sm danger" onclick="cancelOrder('${order.id}')" style="margin-top: 10px;">ОТМЕНИТЬ ЗАКАЗ</button>` : ''}
+                <button class="btn-sm" onclick="deleteSingleOrder('${order.id}')" style="margin-top: 10px; margin-left: 5px;">
+                  УДАЛИТЬ ИЗ ИСТОРИИ
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      ordersList.innerHTML = html;
+    }
+    
+    function getPaymentMethodText(method) {
+      switch(method) {
+        case 'cash': return 'Наличные';
+        case 'card': return 'Карта курьеру';
+        case 'crypto': return 'Криптовалюта';
+        default: return method;
+      }
+    }
+    
+    window.cancelOrder = async function(orderId) {
+      if (!confirm("Отменить этот заказ?")) return;
+      
+      try {
+        await updateDoc(doc(db, "orders", orderId), {
+          status: "canceled",
+          updatedAt: serverTimestamp()
+        });
+        showToast("Заказ отменен");
+      } catch (error) {
+        console.error("Cancel order error:", error);
+        showToast("Ошибка отмены заказа", true);
+      }
+    }
+    
+    window.deleteSingleOrder = async function(orderId) {
+      if(!confirm("Удалить этот заказ из истории?")) return;
+      
+      try {
+        await deleteDoc(doc(db, "orders", orderId));
+        showToast("Заказ удален");
+      } catch(error) {
+        console.error("Delete single order error:", error);
+        showToast("Ошибка удаления", true);
+      }
+    }
+    
+    window.clearOrderHistory = async function() {
+      if (!currentUser) {
+        showToast("Ошибка: пользователь не авторизован", true);
+        return;
+      }
+      
+      if (!confirm("УДАЛИТЬ ВСЮ ИСТОРИЮ ЗАКАЗОВ?\n\nЭто действие НЕОБРАТИМО!\nВсе ваши заказы будут удалены навсегда.")) return;
+      
+      try {
+        showToast("Удаление заказов...", false);
+        
+        const q = query(
+          collection(db, "orders"),
+          where("userId", "==", currentUser.uid)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        if(querySnapshot.empty) {
+          showToast("У вас нет заказов для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено ${deletePromises.length} заказов`);
+        
+      } catch(error) {
+        console.error("Clear order history error:", error);
+        showToast("Ошибка при удалении заказов: " + error.message, true);
+      }
+    }
+    
+    // --- FAVORITES & RECENT ---
+    window.toggleFavorite = function(productId) {
+      if(favorites[productId]) {
+        delete favorites[productId];
+        showToast("Удалено из избранного");
+      } else {
+        favorites[productId] = true;
+        showToast("Добавлено в избранное");
+      }
+      saveLocal("favorites", favorites);
+      renderProducts();
+      renderFavRecent();
+    }
+    
+    window.showProductDetails = function(productId) {
+      const product = productsAllCache.find(p => p.id === productId);
+      if(!product) return;
+      
+      recent = recent.filter(item => item.id !== productId);
+      recent.unshift({
+        id: productId,
+        name: product.name || "Товар"
+      });
+      if(recent.length > 5) recent = recent.slice(0, 5);
+      saveLocal("recent", recent);
+      
+      showProductDetailsModal(product);
+      renderFavRecent();
+    }
+    
+    function showProductDetailsModal(product) {
+      const section = globalSections.find(s => s.id === product.globalSectionId);
+      const group = groupsBySection[product.globalSectionId]?.find(g => g.id === product.groupId);
+      
+      const priceInRUB = product.price || 0;
+      const convertedPrice = priceInRUB * FX[settings.currency].rateFromRUB;
+      const displayPrice = settings.priceMode === 'pretty' 
+        ? formatPrice(convertedPrice)
+        : convertedPrice.toFixed(2);
+      
+      const stock = product.stock || 0;
+      const canAdd = stock > 0;
+      
+      let html = `
+        <div style="margin-bottom:20px;">
+          ${product.imageUrl ? `<img src="${escapeHtml(product.imageUrl)}" style="width:100%; max-height:300px; object-fit:cover; margin-bottom:15px;" alt="">` : ''}
+          <h3 class="glow" style="margin-bottom:10px;">${escapeHtml(product.name || "Товар")}</h3>
+          <div style="margin-bottom:15px; line-height:1.5;">${escapeHtml(product.description || "Нет описания")}</div>
+          
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-bottom:20px;">
+            <div style="background:#111; padding:10px; border:1px solid var(--term-dim);">
+              <div class="muted">Цена</div>
+              <div class="glow" style="font-size:1.3rem;">${displayPrice} ${FX[settings.currency].symbol}</div>
+            </div>
+            <div style="background:#111; padding:10px; border:1px solid var(--term-dim);">
+              <div class="muted">Остаток</div>
+              <div class="${stock > 0 ? 'glow' : 'glow-red'}" style="font-size:1.3rem;">${stock} шт.</div>
+            </div>
+          </div>
+          
+          <div style="margin-bottom:15px;">
+            <div><strong>Раздел:</strong> ${section ? escapeHtml(section.name) : "—"}</div>
+            ${group ? `<div><strong>Группа:</strong> ${escapeHtml(group.name)}</div>` : ''}
+            ${product.tags ? `<div><strong>Теги:</strong> ${escapeHtml(product.tags)}</div>` : ''}
+          </div>
+          
+          <div class="row" style="margin-top:20px; justify-content:center;">
+            <button class="btn-icon" onclick="toggleFavorite('${product.id}')" style="font-size:1.2rem;">
+              ${favorites[product.id] ? '★' : '☆'}
+            </button>
+            <button class="btn-sm ${!canAdd ? 'danger' : ''}" onclick="addToCart('${product.id}')" ${!canAdd ? 'disabled' : ''} style="flex:1; max-width:200px;">
+              ${stock > 0 ? 'ДОБАВИТЬ В КОРЗИНУ' : t('outOfStock')}
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('prod-detail-title').innerText = escapeHtml(product.name || "Детали товара");
+      document.getElementById('product-details-content').innerHTML = html;
+      toggleModal('product-details-modal');
+    }
+    
+    function renderFavRecent() {
+      const favList = document.getElementById('favorites-list');
+      const recentList = document.getElementById('recent-list');
+      
+      const favIds = Object.keys(favorites);
+      if(favIds.length === 0) {
+        favList.innerHTML = "—";
+      } else {
+        favList.innerHTML = favIds.map(id => {
+          const p = productsAllCache.find(p => p.id === id);
+          return p ? `<div style="margin-bottom:4px; cursor:pointer;" onclick="showProductDetails('${id}')">• ${escapeHtml(p.name?.substring(0, 30) || "Товар")}</div>` : '';
+        }).join('');
+      }
+      
+      if(recent.length === 0) {
+        recentList.innerHTML = "—";
+      } else {
+        recentList.innerHTML = recent.map(item => 
+          `<div style="margin-bottom:4px; cursor:pointer;" onclick="showProductDetails('${item.id}')">• ${escapeHtml(item.name?.substring(0, 30) || "Товар")}</div>`
+        ).join('');
+      }
+    }
+    
+    // --- SETTINGS FUNCTIONS ---
+    function syncSettingsModal() {
+      document.getElementById('set-theme').value = settings.theme;
+      document.getElementById('set-currency').value = settings.currency;
+      document.getElementById('set-lang').value = settings.lang;
+      document.getElementById('set-price-mode').value = settings.priceMode;
+    }
+    
+    window.saveSettings = function() {
+      settings.theme = document.getElementById('set-theme').value;
+      settings.currency = document.getElementById('set-currency').value;
+      settings.lang = document.getElementById('set-lang').value;
+      settings.priceMode = document.getElementById('set-price-mode').value;
+      
+      saveLocal("settings", settings);
+      document.documentElement.dataset.theme = settings.theme;
+      
+      toggleModal('settings-modal');
+      updateHeaderMeta();
+      renderProducts();
+      showToast("Настройки сохранены");
+    }
+    
+    window.clearAllLocalData = function() {
+      if(confirm("Очистить ВСЕ локальные данные (корзину, избранное, историю, настройки)?")) {
+        localStorage.clear();
+        cart = [];
+        favorites = {};
+        recent = [];
+        Object.assign(settings, DEFAULTS);
+        
+        document.documentElement.dataset.theme = settings.theme;
+        updateCartCount();
+        updateHeaderMeta();
+        renderProducts();
+        renderFavRecent();
+        showToast("Все локальные данные очищены");
+        toggleModal('settings-modal');
+      }
+    }
+    
+    // --- ADMIN FUNCTIONS ---
+    window.switchAdminTab = function(tab) {
+      const content = document.getElementById('admin-content');
+      
+      switch(tab) {
+        case 'products':
+          renderAdminProducts();
+          break;
+        case 'sections':
+          renderAdminSections();
+          break;
+        case 'groups':
+          renderAdminGroups();
+          break;
+        case 'categories':
+          renderAdminCategories();
+          break;
+        case 'users':
+          renderAdminUsers();
+          break;
+        case 'orders':
+          renderAdminOrders();
+          break;
+        case 'danger':
+          renderAdminDangerZone();
+          break;
+      }
+    }
+    
+    function renderAdminProducts() {
+      let html = `
+        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <h3>ТОВАРЫ (${productsAllCache.length})</h3>
+          <div class="row">
+            <button class="btn-sm" onclick="openAddProduct()">+ ДОБАВИТЬ ТОВАР</button>
+            <button class="btn-sm danger" onclick="deleteAllProducts()">УДАЛИТЬ ВСЕ ТОВАРЫ</button>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Название</th>
+              <th>Цена</th>
+              <th>Остаток</th>
+              <th>Раздел</th>
+              <th>Активен</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      productsAllCache.forEach(p => {
+        const section = globalSections.find(s => s.id === p.globalSectionId);
+        html += `
+          <tr>
+            <td><small>${p.id.substring(0, 8)}...</small></td>
+            <td>${escapeHtml(p.name || "")}</td>
+            <td>${p.price || 0} RUB</td>
+            <td>${p.stock || 0}</td>
+            <td>${section ? escapeHtml(section.name) : "—"}</td>
+            <td>${p.active ? "✓" : "✗"}</td>
+            <td>
+              <button class="btn-sm" onclick="editProduct('${p.id}')">Edit</button>
+              <button class="btn-sm danger" onclick="toggleProductActive('${p.id}', ${!p.active})">${p.active ? "Deactivate" : "Activate"}</button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += `</tbody></table>`;
+      document.getElementById('admin-content').innerHTML = html;
+    }
+    
+    function renderAdminSections() {
+      const counts = {};
+      productsAllCache.forEach(p => {
+        const sid = p.globalSectionId;
+        if(sid) counts[sid] = (counts[sid] || 0) + 1;
+      });
+      
+      let html = `
+        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <h3>РАЗДЕЛЫ (${globalSections.length})</h3>
+          <div class="row">
+            <button class="btn-sm" onclick="openAddSection()">+ ДОБАВИТЬ РАЗДЕЛ</button>
+            <button class="btn-sm danger" onclick="deleteAllSections()">УДАЛИТЬ ВСЕ РАЗДЕЛЫ</button>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Название</th>
+              <th>Описание</th>
+              <th>Товаров</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      globalSections.forEach(sec => {
+        html += `
+          <tr>
+            <td><small>${sec.id.substring(0, 8)}...</small></td>
+            <td>${escapeHtml(sec.name || "")} ${sec.icon || ""}</td>
+            <td>${escapeHtml(sec.description?.substring(0, 50) || "")}</td>
+            <td>${counts[sec.id] || 0}</td>
+            <td>
+              <button class="btn-sm danger" onclick="deleteSingleSection('${sec.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += `</tbody></table>`;
+      document.getElementById('admin-content').innerHTML = html;
+    }
+    
+    function renderAdminGroups() {
+      const allGroups = [];
+      Object.values(groupsBySection).forEach(groups => {
+        groups.forEach(g => allGroups.push(g));
+      });
+      
+      let html = `
+        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <h3>ГРУППЫ (${allGroups.length})</h3>
+          <div class="row">
+            <button class="btn-sm" onclick="openAddGroup()">+ ДОБАВИТЬ ГРУППУ</button>
+            <button class="btn-sm danger" onclick="deleteAllGroups()">УДАЛИТЬ ВСЕ ГРУППЫ</button>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Название</th>
+              <th>Раздел</th>
+              <th>Описание</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      allGroups.forEach(g => {
+        const section = globalSections.find(s => s.id === g.globalSectionId);
+        html += `
+          <tr>
+            <td><small>${g.id.substring(0, 8)}...</small></td>
+            <td>${escapeHtml(g.name || "")}</td>
+            <td>${section ? escapeHtml(section.name) : "—"}</td>
+            <td>${escapeHtml(g.description?.substring(0, 50) || "")}</td>
+            <td>
+              <button class="btn-sm danger" onclick="deleteSingleGroup('${g.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += `</tbody></table>`;
+      document.getElementById('admin-content').innerHTML = html;
+    }
+    
+    function renderAdminCategories() {
+      const allCategories = [];
+      Object.values(categoriesBySection).forEach(cats => {
+        cats.forEach(c => allCategories.push(c));
+      });
+      
+      let html = `
+        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <h3>КАТЕГОРИИ (${allCategories.length})</h3>
+          <div class="row">
+            <button class="btn-sm" onclick="openAddCategory()">+ ДОБАВИТЬ КАТЕГОРИЮ</button>
+            <button class="btn-sm danger" onclick="deleteAllCategories()">УДАЛИТЬ ВСЕ КАТЕГОРИИ</button>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Название</th>
+              <th>Раздел</th>
+              <th>Группа</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      allCategories.forEach(cat => {
+        const section = globalSections.find(s => s.id === cat.globalSectionId);
+        const group = groupsBySection[cat.globalSectionId]?.find(g => g.id === cat.groupId);
+        html += `
+          <tr>
+            <td><small>${cat.id.substring(0, 8)}...</small></td>
+            <td>${escapeHtml(cat.name || "")}</td>
+            <td>${section ? escapeHtml(section.name) : "—"}</td>
+            <td>${group ? escapeHtml(group.name) : "—"}</td>
+            <td>
+              <button class="btn-sm danger" onclick="deleteSingleCategory('${cat.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += `</tbody></table>`;
+      document.getElementById('admin-content').innerHTML = html;
+    }
+    
+    function renderAdminUsers() {
+      let html = `
+        <h3>ПОЛЬЗОВАТЕЛИ</h3>
+        <div class="muted">Загрузка...</div>
+      `;
+      document.getElementById('admin-content').innerHTML = html;
+      
+      onSnapshot(query(collection(db, "users")), (snap) => {
+        const users = [];
+        snap.forEach(d => users.push({ id: d.id, ...d.data() }));
+        
+        html = `
+          <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3>ПОЛЬЗОВАТЕЛИ (${users.length})</h3>
+            <button class="btn-sm danger" onclick="deleteAllUsers()">УДАЛИТЬ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ</button>
+          </div>
+          <table class="data-table" style="margin-top:12px;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Ник</th>
+                <th>Email</th>
+                <th>Роль</th>
+                <th>Забанен</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        users.forEach(u => {
+          html += `
+            <tr>
+              <td><small>${u.id.substring(0, 8)}...</small></td>
+              <td>${escapeHtml(u.username || "")}</td>
+              <td>${escapeHtml(u.email || "")}</td>
+              <td>${u.role || "user"}</td>
+              <td>${u.banned ? "✓" : "✗"}</td>
+              <td>
+                <button class="btn-sm" onclick="toggleUserBan('${u.id}', ${!u.banned})">${u.banned ? "Разбанить" : "Забанить"}</button>
+                ${u.role !== 'admin' ? `<button class="btn-sm" onclick="makeAdmin('${u.id}')">Сделать админом</button>` : ''}
+                <button class="btn-sm danger" onclick="deleteSingleUser('${u.id}')" style="margin-left:5px;">Удалить</button>
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `</tbody></table>`;
+        document.getElementById('admin-content').innerHTML = html;
+      });
+    }
+    
+    function renderAdminOrders() {
+      let html = `
+        <h3>ВСЕ ЗАКАЗЫ</h3>
+        <div class="muted">Загрузка...</div>
+      `;
+      document.getElementById('admin-content').innerHTML = html;
+      
+      onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")), (snap) => {
+        const orders = [];
+        snap.forEach(d => orders.push({ id: d.id, ...d.data() }));
+        
+        html = `
+          <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3>ВСЕ ЗАКАЗЫ (${orders.length})</h3>
+            <div class="row">
+              <button class="btn-sm danger" onclick="deleteAllOrders()">УДАЛИТЬ ВСЕ ЗАКАЗЫ</button>
+              <button class="btn-sm warning" onclick="deleteOldOrders()">УДАЛИТЬ СТАРЫЕ ЗАКАЗЫ</button>
+            </div>
+          </div>
+          <table class="data-table" style="margin-top:12px;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Пользователь</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th>Дата</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        orders.forEach(o => {
+          const date = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString() : "—";
+          html += `
+            <tr>
+              <td><small>${o.id.substring(0, 8)}...</small></td>
+              <td>${escapeHtml(o.username || "")}</td>
+              <td>${o.total || 0} RUB</td>
+              <td class="status-${o.status || 'new'}">${o.status || "new"}</td>
+              <td><small>${date}</small></td>
+              <td>
+                <button class="btn-sm" onclick="viewOrderDetails('${o.id}')">View</button>
+                <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin-left:6px; padding:4px;">
+                  <option value="new" ${o.status === 'new' ? 'selected' : ''}>new</option>
+                  <option value="processing" ${o.status === 'processing' ? 'selected' : ''}>processing</option>
+                  <option value="done" ${o.status === 'done' ? 'selected' : ''}>done</option>
+                  <option value="canceled" ${o.status === 'canceled' ? 'selected' : ''}>canceled</option>
+                </select>
+                <button class="btn-sm danger" onclick="deleteSingleOrderAdmin('${o.id}')" style="margin-left:5px;">Удалить</button>
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `</tbody></table>`;
+        document.getElementById('admin-content').innerHTML = html;
+      });
+    }
+    
+    function renderAdminDangerZone() {
+      const html = `
+        <div class="admin-danger-zone">
+          <h3>⚡ ОПАСНАЯ ЗОНА ⚡</h3>
+          <p class="muted">Эти действия НЕОБРАТИМЫ! Будьте осторожны.</p>
+          
+          <div style="margin: 20px 0;">
+            <button class="btn-sm danger" onclick="deleteAllProducts()" style="margin-bottom: 10px; width: 100%;">
+              ⚠ УДАЛИТЬ ВСЕ ТОВАРЫ
+            </button>
+            <button class="btn-sm danger" onclick="deleteAllSections()" style="margin-bottom: 10px; width: 100%;">
+              ⚠ УДАЛИТЬ ВСЕ РАЗДЕЛЫ
+            </button>
+            <button class="btn-sm danger" onclick="deleteAllGroups()" style="margin-bottom: 10px; width: 100%;">
+              ⚠ УДАЛИТЬ ВСЕ ГРУППЫ
+            </button>
+            <button class="btn-sm danger" onclick="deleteAllCategories()" style="margin-bottom: 10px; width: 100%;">
+              ⚠ УДАЛИТЬ ВСЕ КАТЕГОРИИ
+            </button>
+            <button class="btn-sm danger" onclick="deleteAllOrders()" style="margin-bottom: 10px; width: 100%;">
+              ⚠ УДАЛИТЬ ВСЕ ЗАКАЗЫ
+            </button>
+            <button class="btn-sm danger" onclick="deleteAllUsers()" style="margin-bottom: 10px; width: 100%;">
+              ⚠ УДАЛИТЬ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ
+            </button>
+          </div>
+          
+          <div style="background: #000; padding: 15px; border: 1px solid red;">
+            <h4 style="color: red;">СБРОС ВСЕЙ БАЗЫ ДАННЫХ</h4>
+            <p class="muted">Это удалит ВСЁ: товары, разделы, группы, категории, пользователей, заказы.</p>
+            <button class="btn-sm danger" onclick="resetEntireDatabase()" style="margin-top: 10px; width: 100%;">
+              💀 ПОЛНЫЙ СБРОС БАЗЫ ДАННЫХ 💀
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('admin-content').innerHTML = html;
+    }
+    
+    // --- EDIT PRODUCT ---
+    window.editProduct = function(productId) {
+      const product = productsAllCache.find(p => p.id === productId);
+      if(!product) return;
+      
+      document.getElementById('edit-prod-id').value = productId;
+      document.getElementById('edit-prod-name').value = product.name || "";
+      document.getElementById('edit-prod-desc').value = product.description || "";
+      document.getElementById('edit-prod-price').value = product.price || "";
+      document.getElementById('edit-prod-stock').value = product.stock || "";
+      document.getElementById('edit-prod-image').value = product.imageUrl || "";
+      document.getElementById('edit-prod-tags').value = product.tags || "";
+      document.getElementById('edit-prod-active').checked = product.active !== false;
+      
+      updateSectionSelects();
+      updateGroupSelects();
+      
+      setTimeout(() => {
+        document.getElementById('edit-prod-section').value = product.globalSectionId || "";
+        document.getElementById('edit-prod-group').value = product.groupId || "";
+        document.getElementById('edit-prod-category').value = product.categoryId || "";
+      }, 100);
+      
+      toggleModal('edit-product-modal');
+    }
+    
+    window.saveProductEdits = async function() {
+      try {
+        const id = document.getElementById('edit-prod-id').value;
+        if(!id) return;
+        
+        const updates = {
+          name: document.getElementById('edit-prod-name').value,
+          description: document.getElementById('edit-prod-desc').value || "",
+          price: parseFloat(document.getElementById('edit-prod-price').value) || 0,
+          stock: parseInt(document.getElementById('edit-prod-stock').value) || 0,
+          globalSectionId: document.getElementById('edit-prod-section').value,
+          groupId: document.getElementById('edit-prod-group').value || null,
+          categoryId: document.getElementById('edit-prod-category').value || null,
+          imageUrl: document.getElementById('edit-prod-image').value || "",
+          tags: document.getElementById('edit-prod-tags').value || "",
+          active: document.getElementById('edit-prod-active').checked,
+          updatedAt: serverTimestamp()
+        };
+        
+        await updateDoc(doc(db, "products", id), updates);
+        toggleModal('edit-product-modal');
+        showToast("Товар обновлен");
+        
+      } catch(error) {
+        console.error("Update product error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteProductNow = async function() {
+      if(!confirm("Удалить этот товар?")) return;
+      
+      const id = document.getElementById('edit-prod-id').value;
+      if(!id) return;
+      
+      try {
+        await deleteDoc(doc(db, "products", id));
+        toggleModal('edit-product-modal');
+        showToast("Товар удален");
+      } catch(error) {
+        console.error("Delete product error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.toggleProductActive = async function(productId, newActive) {
+      try {
+        await updateDoc(doc(db, "products", productId), {
+          active: newActive,
+          updatedAt: serverTimestamp()
+        });
+        showToast(`Товар ${newActive ? "активирован" : "деактивирован"}`);
+      } catch(error) {
+        console.error("Toggle active error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    // --- DELETE ALL FUNCTIONS (РАБОЧИЕ!) ---
+    
+    window.deleteAllProducts = async function() {
+      if(!confirm("⚠⚠⚠ УДАЛИТЬ ВСЕ ТОВАРЫ? ⚠⚠⚠\n\nЭто действие НЕОБРАТИМО!\nВсе товары будут удалены навсегда.")) return;
+      
+      const password = prompt("Для подтверждения введите пароль администратора:");
+      if(password !== "admin123") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Удаление всех товаров...", false);
+        
+        const querySnapshot = await getDocs(collection(db, "products"));
+        
+        if(querySnapshot.empty) {
+          showToast("Нет товаров для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено товаров: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete all products error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteAllSections = async function() {
+      if(!confirm("⚠⚠⚠ УДАЛИТЬ ВСЕ РАЗДЕЛЫ? ⚠⚠⚠\n\nВсе товары в этих разделах останутся без раздела!")) return;
+      
+      const password = prompt("Для подтверждения введите пароль администратора:");
+      if(password !== "admin123") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Удаление всех разделов...", false);
+        
+        const querySnapshot = await getDocs(collection(db, "globalSections"));
+        
+        if(querySnapshot.empty) {
+          showToast("Нет разделов для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено разделов: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete all sections error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteSingleSection = async function(sectionId) {
+      if(!confirm("Удалить этот раздел?\n\nТовары в этом разделе останутся без раздела.")) return;
+      
+      try {
+        await deleteDoc(doc(db, "globalSections", sectionId));
+        showToast("Раздел удален");
+      } catch(error) {
+        console.error("Delete section error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteAllGroups = async function() {
+      if(!confirm("⚠⚠⚠ УДАЛИТЬ ВСЕ ГРУППЫ? ⚠⚠⚠\n\nТовары в этих группах останутся без группы!")) return;
+      
+      const password = prompt("Для подтверждения введите пароль администратора:");
+      if(password !== "admin123") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Удаление всех групп...", false);
+        
+        const querySnapshot = await getDocs(collection(db, "groups"));
+        
+        if(querySnapshot.empty) {
+          showToast("Нет групп для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено групп: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete all groups error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteSingleGroup = async function(groupId) {
+      if(!confirm("Удалить эту группу?\n\nТовары в этой группе останутся без группы.")) return;
+      
+      try {
+        await deleteDoc(doc(db, "groups", groupId));
+        showToast("Группа удалена");
+      } catch(error) {
+        console.error("Delete group error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteAllCategories = async function() {
+      if(!confirm("⚠⚠⚠ УДАЛИТЬ ВСЕ КАТЕГОРИИ? ⚠⚠⚠")) return;
+      
+      const password = prompt("Для подтверждения введите пароль администратора:");
+      if(password !== "admin123") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Удаление всех категорий...", false);
+        
+        const querySnapshot = await getDocs(collection(db, "categories"));
+        
+        if(querySnapshot.empty) {
+          showToast("Нет категорий для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено категорий: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete all categories error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteSingleCategory = async function(categoryId) {
+      if(!confirm("Удалить эту категорию?")) return;
+      
+      try {
+        await deleteDoc(doc(db, "categories", categoryId));
+        showToast("Категория удалена");
+      } catch(error) {
+        console.error("Delete category error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteAllOrders = async function() {
+      if(!confirm("⚠⚠⚠ УДАЛИТЬ ВСЕ ЗАКАЗЫ? ⚠⚠⚠\n\nЭто действие НЕЛЬЗЯ отменить!")) return;
+      
+      const password = prompt("Для подтверждения введите пароль администратора:");
+      if(password !== "admin123") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Удаление всех заказов...", false);
+        
+        const querySnapshot = await getDocs(collection(db, "orders"));
+        
+        if(querySnapshot.empty) {
+          showToast("Нет заказов для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено ВСЕХ заказов: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete all orders error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteOldOrders = async function() {
+      if(!confirm("Удалить старые заказы (старше 30 дней)?")) return;
+      
+      try {
+        showToast("Поиск старых заказов...", false);
+        
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const q = query(
+          collection(db, "orders"),
+          where("createdAt", "<", thirtyDaysAgo)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        if(querySnapshot.empty) {
+          showToast("Нет старых заказов для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено старых заказов: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete old orders error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteSingleOrderAdmin = async function(orderId) {
+      if(!confirm("Удалить этот заказ из базы данных?")) return;
+      
+      try {
+        await deleteDoc(doc(db, "orders", orderId));
+        showToast("Заказ удален");
+      } catch(error) {
+        console.error("Delete order error:", error);
+        showToast("Ошибка удаления", true);
+      }
+    }
+    
+    window.deleteAllUsers = async function() {
+      if(!confirm("⚠⚠⚠ УДАЛИТЬ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ? ⚠⚠⚠\n\nВключая администраторов!\nВы останетесь единственным пользователем.")) return;
+      
+      const password = prompt("Для подтверждения введите пароль администратора:");
+      if(password !== "admin123") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Удаление всех пользователей...", false);
+        
+        const querySnapshot = await getDocs(collection(db, "users"));
+        
+        if(querySnapshot.empty) {
+          showToast("Нет пользователей для удаления");
+          return;
+        }
+        
+        const deletePromises = [];
+        querySnapshot.forEach((doc) => {
+          // Не удаляем текущего пользователя
+          if(doc.id !== currentUser.uid) {
+            deletePromises.push(deleteDoc(doc.ref));
+          }
+        });
+        
+        await Promise.all(deletePromises);
+        
+        showToast(`Удалено пользователей: ${deletePromises.length}`, true);
+        
+      } catch(error) {
+        console.error("Delete all users error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.deleteSingleUser = async function(userId) {
+      if(userId === currentUser.uid) {
+        showToast("Нельзя удалить себя!", true);
+        return;
+      }
+      
+      if(!confirm("Удалить этого пользователя?\n\nВсе его заказы также будут удалены.")) return;
+      
+      try {
+        // Сначала удаляем заказы пользователя
+        const ordersQuery = query(
+          collection(db, "orders"),
+          where("userId", "==", userId)
+        );
+        
+        const ordersSnapshot = await getDocs(ordersQuery);
+        const orderDeletePromises = [];
+        ordersSnapshot.forEach((doc) => {
+          orderDeletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(orderDeletePromises);
+        
+        // Затем удаляем самого пользователя
+        await deleteDoc(doc(db, "users", userId));
+        
+        showToast(`Пользователь удален (и ${orderDeletePromises.length} его заказов)`);
+        
+      } catch(error) {
+        console.error("Delete user error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.resetEntireDatabase = async function() {
+      if(!confirm("💀💀💀 ПОЛНЫЙ СБРОС БАЗЫ ДАННЫХ? 💀💀💀\n\nЭто удалит ВСЁ:\n- Все товары\n- Все разделы\n- Все группы\n- Все категории\n- Всех пользователей\n- Все заказы\n\nЭто действие НЕОБРАТИМО!")) return;
+      
+      const password = prompt("Для подтверждения введите пароль 'DESTROY_ALL':");
+      if(password !== "DESTROY_ALL") {
+        showToast("Неверный пароль!", true);
+        return;
+      }
+      
+      try {
+        showToast("Начинается полный сброс базы данных...", false);
+        
+        // Удаляем все коллекции по очереди
+        const collections = ["products", "globalSections", "groups", "categories", "orders", "users"];
+        
+        for (const collectionName of collections) {
+          if (collectionName === "users") continue; // Пропускаем пользователей, чтобы не удалить себя
+          
+          const querySnapshot = await getDocs(collection(db, collectionName));
+          const deletePromises = [];
+          
+          querySnapshot.forEach((doc) => {
+            deletePromises.push(deleteDoc(doc.ref));
+          });
+          
+          if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
+            console.log(`Удалено ${deletePromises.length} документов из ${collectionName}`);
+          }
+        }
+        
+        showToast("✅ База данных полностью сброшена!", true);
+        
+      } catch(error) {
+        console.error("Reset database error:", error);
+        showToast("Ошибка сброса: " + error.message, true);
+      }
+    }
+    
+    window.toggleUserBan = async function(userId, banStatus) {
+      try {
+        await updateDoc(doc(db, "users", userId), {
+          banned: banStatus,
+          updatedAt: serverTimestamp()
+        });
+        showToast(`Пользователь ${banStatus ? "забанен" : "разбанен"}`);
+      } catch(error) {
+        console.error("Toggle ban error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.makeAdmin = async function(userId) {
+      try {
+        await updateDoc(doc(db, "users", userId), {
+          role: "admin",
+          updatedAt: serverTimestamp()
+        });
+        showToast("Пользователь стал администратором");
+      } catch(error) {
+        console.error("Make admin error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    window.viewOrderDetails = function(orderId) {
+      // Можно реализовать детальный просмотр заказа
+      alert("Просмотр деталей заказа " + orderId);
+    }
+    
+    window.updateOrderStatus = async function(orderId, newStatus) {
+      try {
+        await updateDoc(doc(db, "orders", orderId), {
+          status: newStatus,
+          updatedAt: serverTimestamp()
+        });
+        showToast("Статус обновлен");
+      } catch(error) {
+        console.error("Update order status error:", error);
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+    
+    // --- UTILITY FUNCTIONS ---
+    function getGroupName(sectionId, groupId) {
+      const groups = groupsBySection[sectionId] || [];
+      const group = groups.find(g => g.id === groupId);
+      return group ? group.name : null;
+    }
+    
+    function formatPrice(num) {
+      if(settings.priceMode === 'raw') return num.toFixed(2);
+      
+      if(num >= 1000000) return (num/1000000).toFixed(2) + 'M';
+      if(num >= 1000) return (num/1000).toFixed(1) + 'K';
+      return num.toFixed(2);
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function saveLocal(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch(e) {
+        console.error("LocalStorage save error:", e);
+      }
+    }
+    
+    function loadLocal(key) {
+      try {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : null;
+      } catch(e) {
+        console.error("LocalStorage load error:", e);
+        return null;
+      }
+    }
+    
+    window.toggleModal = function(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.toggle('hidden');
+    }
+    
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = isError ? 'toast glow-red' : 'toast glow';
+      toast.style.display = 'block';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+    window.showToast = showToast;
+  </script>
+</body>
+</html>
